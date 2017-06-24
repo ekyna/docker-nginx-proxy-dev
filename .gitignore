@@ -1,0 +1,5 @@
+/.idea
+/volumes/certs/
+!/volumes/certs/.gitkeep
+/docker_logs.txt
+/.env
