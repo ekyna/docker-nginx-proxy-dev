@@ -25,7 +25,6 @@ Docker Nginx proxy with self signed certificates for local development.
             image: nginx
             environment:
               - VIRTUAL_HOST=example.dev
-              - VIRTUAL_NETWORK=example-network
               - VIRTUAL_PORT=80
 
 3. Create your network and connect it to the proxy services:
