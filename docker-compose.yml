@@ -15,14 +15,20 @@ services:
             - "/usr/share/nginx/html"
             - "./volumes/gencert.sh:/root/gencert.sh:ro"
             - "./volumes/certs:/etc/nginx/certs:rw"
+        logging:
+            driver: "json-file"
+            options: { max-size: "2m", max-file: "3" }
 
-    nginx-gen:
+    generator:
         restart: always
         image: jwilder/docker-gen
-        container_name: ${COMPOSE_PROJECT_NAME}_nginx_gen
+        container_name: ${COMPOSE_PROJECT_NAME}_generator
         volumes:
             - "/var/run/docker.sock:/tmp/docker.sock:ro"
             - "./volumes/proxy/nginx.tmpl:/etc/docker-gen/templates/nginx.tmpl:ro"
         volumes_from:
             - nginx
         entrypoint: /usr/local/bin/docker-gen -notify-sighup ${COMPOSE_PROJECT_NAME}_nginx -watch -wait 5s:30s /etc/docker-gen/templates/nginx.tmpl /etc/nginx/conf.d/default.conf
+        logging:
+            driver: "json-file"
+            options: { max-size: "2m", max-file: "3" }

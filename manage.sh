@@ -80,7 +80,7 @@ Connect() {
     fi
 
     docker network connect $1 ${COMPOSE_PROJECT_NAME}_nginx
-    docker network connect $1 ${COMPOSE_PROJECT_NAME}_nginx_gen
+    docker network connect $1 ${COMPOSE_PROJECT_NAME}_generator
 }
 
 # ----------------------------- EXEC -----------------------------

@@ -39,6 +39,9 @@ log_format vhost '$host $remote_addr - $remote_user [$time_local] '
 
 access_log off;
 
+server_tokens off;
+client_max_body_size 16m;
+
 {{ if (exists "/etc/nginx/proxy.conf") }}
 include /etc/nginx/proxy.conf;
 {{ else }}
@@ -54,6 +57,10 @@ proxy_set_header X-Forwarded-Proto $proxy_x_forwarded_proto;
 
 # Mitigate httpoxy attack (see README for details)
 proxy_set_header Proxy "";
+
+proxy_cache_path /var/cache/nginx levels=1:2 keys_zone=cache:100m inactive=24h max_size=2g;
+proxy_cache_key "$scheme$host$request_uri";
+proxy_cache_use_stale error timeout invalid_header updating http_500 http_502 http_503 http_504;
 {{ end }}
 
 server {
@@ -168,6 +175,26 @@ server {
 	include /etc/nginx/vhost.d/default;
 	{{ end }}
 
+	location ~* \.(?:css|js|jpg|jpeg|gif|png|ico|svg)$ {
+		access_log off;
+		proxy_cache cache;
+		proxy_cache_valid 200 1d;
+		proxy_cache_valid 404 5m;
+
+		proxy_ignore_headers "Set-Cookie";
+		proxy_hide_header "Set-Cookie";
+		#proxy_ignore_headers "Cache-Control";
+		#proxy_hide_header "Cache-Control";
+		#proxy_hide_header "Etag";
+
+		{{ if eq $proto "uwsgi" }}
+		include uwsgi_params;
+		uwsgi_pass {{ trim $proto }}://{{ trim $host }};
+		{{ else }}
+		proxy_pass {{ trim $proto }}://{{ trim $host }};
+		{{ end }}
+	}
+
 	location / {
 		{{ if eq $proto "uwsgi" }}
 		include uwsgi_params;
@@ -179,11 +206,11 @@ server {
 		auth_basic	"Restricted {{ $host }}";
 		auth_basic_user_file	{{ (printf "/etc/nginx/htpasswd/%s" $host) }};
 		{{ end }}
-                {{ if (exists (printf "/etc/nginx/vhost.d/%s_location" $host)) }}
-                include {{ printf "/etc/nginx/vhost.d/%s_location" $host}};
-                {{ else if (exists "/etc/nginx/vhost.d/default_location") }}
-                include /etc/nginx/vhost.d/default_location;
-                {{ end }}
+		{{ if (exists (printf "/etc/nginx/vhost.d/%s_location" $host)) }}
+		include {{ printf "/etc/nginx/vhost.d/%s_location" $host}};
+		{{ else if (exists "/etc/nginx/vhost.d/default_location") }}
+		include /etc/nginx/vhost.d/default_location;
+		{{ end }}
 	}
 }
 
@@ -202,6 +229,26 @@ server {
 	include /etc/nginx/vhost.d/default;
 	{{ end }}
 
+	location ~* \.(?:css|js|jpg|jpeg|gif|png|ico|svg)$ {
+		access_log off;
+		proxy_cache cache;
+		proxy_cache_valid 200 1d;
+		proxy_cache_valid 404 5m;
+
+		proxy_ignore_headers "Set-Cookie";
+		proxy_hide_header "Set-Cookie";
+		#proxy_ignore_headers "Cache-Control";
+		#proxy_hide_header "Cache-Control";
+		#proxy_hide_header "Etag";
+
+		{{ if eq $proto "uwsgi" }}
+		include uwsgi_params;
+		uwsgi_pass {{ trim $proto }}://{{ trim $host }};
+		{{ else }}
+		proxy_pass {{ trim $proto }}://{{ trim $host }};
+		{{ end }}
+	}
+
 	location / {
 		{{ if eq $proto "uwsgi" }}
 		include uwsgi_params;
@@ -213,11 +260,11 @@ server {
 		auth_basic	"Restricted {{ $host }}";
 		auth_basic_user_file	{{ (printf "/etc/nginx/htpasswd/%s" $host) }};
 		{{ end }}
-                {{ if (exists (printf "/etc/nginx/vhost.d/%s_location" $host)) }}
-                include {{ printf "/etc/nginx/vhost.d/%s_location" $host}};
-                {{ else if (exists "/etc/nginx/vhost.d/default_location") }}
-                include /etc/nginx/vhost.d/default_location;
-                {{ end }}
+		{{ if (exists (printf "/etc/nginx/vhost.d/%s_location" $host)) }}
+		include {{ printf "/etc/nginx/vhost.d/%s_location" $host}};
+		{{ else if (exists "/etc/nginx/vhost.d/default_location") }}
+		include /etc/nginx/vhost.d/default_location;
+		{{ end }}
 	}
 }
 
