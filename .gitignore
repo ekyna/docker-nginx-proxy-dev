@@ -2,4 +2,5 @@
 /volumes/certs/
 !/volumes/certs/.gitkeep
 /docker_logs.txt
+/networks.list
 /.env

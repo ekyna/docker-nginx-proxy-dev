@@ -63,6 +63,12 @@ proxy_cache_key "$scheme$host$request_uri";
 proxy_cache_use_stale error timeout invalid_header updating http_500 http_502 http_503 http_504;
 {{ end }}
 
+client_body_buffer_size  128k;
+#client_header_buffer_size 3m;
+large_client_header_buffers 4 256k;
+#client_body_timeout   3m;
+#client_header_timeout 3m;
+
 server {
 	server_name _; # This is just an invalid value which will never trigger on a real hostname.
 	listen 80;
