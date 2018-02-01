@@ -16,6 +16,30 @@ if [[ "" == "${COMPOSE_PROJECT_NAME}" ]]; then printf "\e[31mCOMPOSE_PROJECT_NAM
 # Clear logs
 echo "" > ${LOG_PATH}
 
+Warning() {
+    printf "\n\e[31;43m$1\e[0m\n"
+}
+
+Help() {
+    printf "\n\e[2m$1\e[0m\n";
+}
+
+Confirm () {
+    printf "\n"
+    choice=""
+    while [ "$choice" != "n" ] && [ "$choice" != "y" ]
+    do
+        printf "Do you want to continue ? (N/Y)"
+        read choice
+        choice=$(echo ${choice} | tr '[:upper:]' '[:lower:]')
+    done
+    if [ "$choice" = "n" ]; then
+        printf "\nAbort by user.\n"
+        exit 0
+    fi
+    printf "\n"
+}
+
 IsUpAndRunning() {
     if [[ "$(docker ps | grep ${COMPOSE_PROJECT_NAME}_$1)" ]]
     then
@@ -126,6 +150,21 @@ Connect() {
     echo $1 >> ./networks.list
 }
 
+Reset() {
+    ComposeDown
+    printf "Clearing configured networks and certificates ... "
+    if [[ -f ./networks.list ]]
+    then
+        rm ./networks.list
+    fi
+    if [[ -d ./volumes/certs/ ]]
+    then
+        rm -f ./volumes/certs/*
+    fi
+    printf "\e[32mdone\e[0m\n"
+    ComposeUp
+}
+
 # ----------------------------- EXEC -----------------------------
 
 case $1 in
@@ -144,14 +183,22 @@ case $1 in
     dump)
         Execute "cat //etc/nginx/conf.d/default.conf"
     ;;
-    *)
-        Help "Usage:  ./do.sh [action] [options]
+    reset)
+        Warning "Configured networks and certificates will be lost."
 
-\t\e[0mup\e[2m\t\t\t Create and start containers for the [env] environment.
-\t\e[0mdown\e[2m\t\t Stop and remove containers for the [env] environment.
-\t\e[0mgencert\e[2m name\t\t Generates certificates for [name] domain.
-\t\e[0mconnect\e[2m name\t\t Connects proxy to [name] network.
-\t\e[0mdump\e[2m name\t\t Dump nginx config.
+        Confirm
+
+        Reset
+    ;;
+    *)
+        Help "Usage:  ./manage.sh [action] [options]
+
+ - \e[0mup\e[2m\t\t Create and start containers for the [env] environment.
+ - \e[0mdown\e[2m\t\t Stop and remove containers for the [env] environment.
+ - \e[0mgencert\e[2m name\t Generates certificates for [name] domain.
+ - \e[0mconnect\e[2m name\t Connects proxy to [name] network.
+ - \e[0mdump\e[2m name\t Dump nginx config.
+ - \e[0mreset\e[2m\t Reset the containers and network connections.
 "
     ;;
 esac
