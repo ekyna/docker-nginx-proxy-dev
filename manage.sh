@@ -194,6 +194,9 @@ case $1 in
     dump)
         cat ./volumes/conf.d/default.conf
     ;;
+    test)
+        docker exec ${COMPOSE_PROJECT_NAME}_nginx nginx -t
+    ;;
     reset)
         Warning "Configured networks and certificates will be lost."
 
@@ -209,7 +212,8 @@ case $1 in
  - \e[0mgencert\e[2m name\t Generates certificates for [name] domain.
  - \e[0mconnect\e[2m name\t Connects proxy to [name] network.
  - \e[restart\e[2m name\t Restart nginx container.
- - \e[0mdump\e[2m name\t Dump nginx config.
+ - \e[0mdump\e[2m\t Dump nginx config.
+ - \e[0mtest\e[2m\t Test nginx config.
  - \e[0mreset\e[2m\t Reset the containers and network connections.
 "
     ;;
