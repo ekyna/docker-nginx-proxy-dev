@@ -54,6 +54,7 @@ proxy_set_header Connection $proxy_connection;
 proxy_set_header X-Real-IP $remote_addr;
 proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
 proxy_set_header X-Forwarded-Proto $proxy_x_forwarded_proto;
+#proxy_intercept_errors on;
 
 # Mitigate httpoxy attack (see README for details)
 proxy_set_header Proxy "";
@@ -69,7 +70,15 @@ server {
 	server_name _; # This is just an invalid value which will never trigger on a real hostname.
 	listen 80;
 	access_log /var/log/nginx/access.log vhost;
-	return 503;
+
+	root /etc/nginx/html/default;
+	index index.html;
+
+    location / {
+		try_files $uri $uri/ /index.html;
+	}
+
+	#return 503;
 }
 
 {{ if (and (exists "/etc/nginx/certs/default.crt") (exists "/etc/nginx/certs/default.key")) }}
@@ -181,8 +190,12 @@ server {
 		{{ if eq $proto "uwsgi" }}
 		include uwsgi_params;
 		uwsgi_pass {{ trim $proto }}://{{ trim $host }};
+		uwsgi_read_timeout 600;
 		{{ else }}
 		proxy_pass {{ trim $proto }}://{{ trim $host }};
+		proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_read_timeout 600;
 		{{ end }}
 		{{ if (exists (printf "/etc/nginx/htpasswd/%s" $host)) }}
 		auth_basic	"Restricted {{ $host }}";
@@ -194,6 +207,12 @@ server {
 		include /etc/nginx/vhost.d/default_location;
 		{{ end }}
 	}
+
+	#error_page 500 503 /503.html;
+    #location = /503.html {
+    #    root /etc/nginx/html/default;
+    #    internal;
+    #}
 }
 
 {{ end }}
@@ -215,8 +234,12 @@ server {
 		{{ if eq $proto "uwsgi" }}
 		include uwsgi_params;
 		uwsgi_pass {{ trim $proto }}://{{ trim $host }};
+		uwsgi_read_timeout 600;
 		{{ else }}
 		proxy_pass {{ trim $proto }}://{{ trim $host }};
+		proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_read_timeout 600;
 		{{ end }}
 		{{ if (exists (printf "/etc/nginx/htpasswd/%s" $host)) }}
 		auth_basic	"Restricted {{ $host }}";
@@ -228,6 +251,12 @@ server {
 		include /etc/nginx/vhost.d/default_location;
 		{{ end }}
 	}
+
+	#error_page 500 503 /503.html;
+    #location = /503.html {
+    #    root /etc/nginx/html/default;
+    #    internal;
+    #}
 }
 
 {{ if (and (not $is_https) (exists "/etc/nginx/certs/default.crt") (exists "/etc/nginx/certs/default.key")) }}

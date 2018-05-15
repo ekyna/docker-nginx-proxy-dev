@@ -6,6 +6,8 @@ then
     exit
 fi
 
+export COMPOSE_CONVERT_WINDOWS_PATHS=1
+
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 LOG_PATH="$DIR/docker_logs.txt"
 
@@ -180,8 +182,17 @@ case $1 in
     connect)
         Connect $2
     ;;
+    restart)
+        if ! IsUpAndRunning nginx
+        then
+            printf "\e[31mNot up and running.\e[0m\n"
+            exit 1
+        fi
+
+        docker restart ${COMPOSE_PROJECT_NAME}_nginx
+    ;;
     dump)
-        Execute "cat //etc/nginx/conf.d/default.conf"
+        cat ./volumes/conf.d/default.conf
     ;;
     reset)
         Warning "Configured networks and certificates will be lost."
@@ -197,6 +208,7 @@ case $1 in
  - \e[0mdown\e[2m\t\t Stop and remove containers for the [env] environment.
  - \e[0mgencert\e[2m name\t Generates certificates for [name] domain.
  - \e[0mconnect\e[2m name\t Connects proxy to [name] network.
+ - \e[restart\e[2m name\t Restart nginx container.
  - \e[0mdump\e[2m name\t Dump nginx config.
  - \e[0mreset\e[2m\t Reset the containers and network connections.
 "
