@@ -31,16 +31,12 @@ map $http_upgrade $proxy_connection {
   '' close;
 }
 
-gzip_types text/plain text/css application/javascript application/json application/x-javascript text/xml application/xml application/xml+rss text/javascript;
-
 log_format vhost '$host $remote_addr - $remote_user [$time_local] '
                  '"$request" $status $body_bytes_sent '
                  '"$http_referer" "$http_user_agent"';
 
 access_log off;
-
 server_tokens off;
-client_max_body_size 16m;
 
 {{ if (exists "/etc/nginx/proxy.conf") }}
 include /etc/nginx/proxy.conf;
@@ -60,11 +56,8 @@ proxy_set_header X-Forwarded-Proto $proxy_x_forwarded_proto;
 proxy_set_header Proxy "";
 {{ end }}
 
-client_body_buffer_size  128k;
-#client_header_buffer_size 3m;
+client_body_buffer_size       128k;
 large_client_header_buffers 4 256k;
-#client_body_timeout   3m;
-#client_header_timeout 3m;
 
 server {
 	server_name _; # This is just an invalid value which will never trigger on a real hostname.
@@ -77,8 +70,6 @@ server {
     location / {
 		try_files $uri $uri/ /index.html;
 	}
-
-	#return 503;
 }
 
 {{ if (and (exists "/etc/nginx/certs/default.crt") (exists "/etc/nginx/certs/default.key")) }}
@@ -86,7 +77,13 @@ server {
 	server_name _; # This is just an invalid value which will never trigger on a real hostname.
 	listen 443 ssl http2;
 	access_log /var/log/nginx/access.log vhost;
-	return 503;
+
+	root /etc/nginx/html/default;
+	index index.html;
+
+    location / {
+		try_files $uri $uri/ /index.html;
+	}
 
 	ssl_session_tickets off;
 	ssl_certificate /etc/nginx/certs/default.crt;
@@ -186,17 +183,21 @@ server {
 	include /etc/nginx/vhost.d/default;
 	{{ end }}
 
-	location / {
+	location ~ /_uploader {
 		{{ if eq $proto "uwsgi" }}
 		include uwsgi_params;
 		uwsgi_pass {{ trim $proto }}://{{ trim $host }};
-		uwsgi_read_timeout 600;
+		uwsgi_connect_timeout  10m;
+        uwsgi_send_timeout     10m;
+        uwsgi_read_timeout     10m;
 		{{ else }}
 		proxy_pass {{ trim $proto }}://{{ trim $host }};
-		proxy_http_version 1.1;
-        proxy_set_header Connection "";
-        proxy_read_timeout 600;
+		proxy_connect_timeout  10m;
+        proxy_send_timeout     10m;
+        proxy_read_timeout     10m;
 		{{ end }}
+        send_timeout           10m;
+        client_max_body_size  256m;
 		{{ if (exists (printf "/etc/nginx/htpasswd/%s" $host)) }}
 		auth_basic	"Restricted {{ $host }}";
 		auth_basic_user_file	{{ (printf "/etc/nginx/htpasswd/%s" $host) }};
@@ -208,11 +209,26 @@ server {
 		{{ end }}
 	}
 
-	#error_page 500 503 /503.html;
-    #location = /503.html {
-    #    root /etc/nginx/html/default;
-    #    internal;
-    #}
+	location / {
+		{{ if eq $proto "uwsgi" }}
+		include uwsgi_params;
+		uwsgi_pass {{ trim $proto }}://{{ trim $host }};
+		uwsgi_read_timeout 600;
+		{{ else }}
+		proxy_pass {{ trim $proto }}://{{ trim $host }};
+        proxy_read_timeout 600;
+		{{ end }}
+        client_max_body_size 16m;
+		{{ if (exists (printf "/etc/nginx/htpasswd/%s" $host)) }}
+		auth_basic	"Restricted {{ $host }}";
+		auth_basic_user_file	{{ (printf "/etc/nginx/htpasswd/%s" $host) }};
+		{{ end }}
+		{{ if (exists (printf "/etc/nginx/vhost.d/%s_location" $host)) }}
+		include {{ printf "/etc/nginx/vhost.d/%s_location" $host}};
+		{{ else if (exists "/etc/nginx/vhost.d/default_location") }}
+		include /etc/nginx/vhost.d/default_location;
+		{{ end }}
+	}
 }
 
 {{ end }}
@@ -230,17 +246,21 @@ server {
 	include /etc/nginx/vhost.d/default;
 	{{ end }}
 
-	location / {
+	location ~ /_uploader {
 		{{ if eq $proto "uwsgi" }}
 		include uwsgi_params;
 		uwsgi_pass {{ trim $proto }}://{{ trim $host }};
-		uwsgi_read_timeout 600;
+		uwsgi_connect_timeout 10m;
+        uwsgi_send_timeout    10m;
+        uwsgi_read_timeout    10m;
 		{{ else }}
 		proxy_pass {{ trim $proto }}://{{ trim $host }};
-		proxy_http_version 1.1;
-        proxy_set_header Connection "";
-        proxy_read_timeout 600;
+		proxy_connect_timeout 10m;
+        proxy_send_timeout    10m;
+        proxy_read_timeout    10m;
 		{{ end }}
+        send_timeout           10m;
+        client_max_body_size  256m;
 		{{ if (exists (printf "/etc/nginx/htpasswd/%s" $host)) }}
 		auth_basic	"Restricted {{ $host }}";
 		auth_basic_user_file	{{ (printf "/etc/nginx/htpasswd/%s" $host) }};
@@ -252,11 +272,24 @@ server {
 		{{ end }}
 	}
 
-	#error_page 500 503 /503.html;
-    #location = /503.html {
-    #    root /etc/nginx/html/default;
-    #    internal;
-    #}
+	location / {
+		{{ if eq $proto "uwsgi" }}
+		include uwsgi_params;
+		uwsgi_pass {{ trim $proto }}://{{ trim $host }};
+		{{ else }}
+		proxy_pass {{ trim $proto }}://{{ trim $host }};
+		{{ end }}
+        client_max_body_size 16m;
+		{{ if (exists (printf "/etc/nginx/htpasswd/%s" $host)) }}
+		auth_basic	"Restricted {{ $host }}";
+		auth_basic_user_file	{{ (printf "/etc/nginx/htpasswd/%s" $host) }};
+		{{ end }}
+		{{ if (exists (printf "/etc/nginx/vhost.d/%s_location" $host)) }}
+		include {{ printf "/etc/nginx/vhost.d/%s_location" $host}};
+		{{ else if (exists "/etc/nginx/vhost.d/default_location") }}
+		include /etc/nginx/vhost.d/default_location;
+		{{ end }}
+	}
 }
 
 {{ if (and (not $is_https) (exists "/etc/nginx/certs/default.crt") (exists "/etc/nginx/certs/default.key")) }}
