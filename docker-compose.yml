@@ -1,4 +1,4 @@
-version: "3.2"
+version: "2.2"
 
 services:
     nginx:
@@ -6,47 +6,34 @@ services:
         build: ./nginx
         image: npl/nginx
         container_name: ${COMPOSE_PROJECT_NAME}_nginx
+        depends_on:
+            - generator
         ports:
             - 80:80
             - 443:443
         volumes:
-            - type: bind
-              source: ./volumes/conf.d
-              target: /etc/nginx/conf.d
-            - type: bind
-              source: ./volumes/vhost.d
-              target: /etc/nginx/vhost.d
-            - type: bind
-              source: ./volumes/html
-              target: /etc/nginx/html
-            - type: bind
-              source: ./volumes/certs
-              target: /etc/nginx/certs
-            - type: bind
-              source: ./volumes/gencert.sh
-              target: /root/gencert.sh
-              read_only: true
+            - ./volumes/conf.d:/etc/nginx/conf.d:rw
+            - ./volumes/vhost.d:/etc/nginx/vhost.d:rw
+            - ./volumes/html:/etc/nginx/html:rw
+            - ./volumes/certs:/etc/nginx/certs:rw
+            - ./volumes/gencert.sh:/root/gencert.sh:ro
         logging:
             driver: "json-file"
             options: { max-size: "2m", max-file: "3" }
+        cpus: 0.1
+        mem_limit: 64M
 
     generator:
         restart: always
         image: jwilder/docker-gen
         container_name: ${COMPOSE_PROJECT_NAME}_generator
         volumes:
-            - type: bind
-              source: ./volumes/conf.d
-              target: /etc/nginx/conf.d
-            - type: bind
-              source: /var/run/docker.sock
-              target: /tmp/docker.sock
-              read_only: true
-            - type: bind
-              source: ./volumes/proxy/nginx.tmpl
-              target: /etc/docker-gen/templates/nginx.tmpl
-              read_only: true
+            - ./volumes/conf.d:/etc/nginx/conf.d:rw
+            - /var/run/docker.sock:/tmp/docker.sock:ro
+            - ./volumes/proxy/nginx.tmpl:/etc/docker-gen/templates/nginx.tmpl:ro
         entrypoint: /usr/local/bin/docker-gen -notify-sighup ${COMPOSE_PROJECT_NAME}_nginx -watch -wait 5s:30s /etc/docker-gen/templates/nginx.tmpl /etc/nginx/conf.d/default.conf
         logging:
             driver: "json-file"
             options: { max-size: "2m", max-file: "3" }
+        cpus: 0.1
+        mem_limit: 64M
