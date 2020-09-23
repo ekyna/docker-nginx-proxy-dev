@@ -1,22 +1,35 @@
 #!/bin/bash
 
+cd "$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )" || exit
+
 if [[ ! -f "./.env" ]]
 then
     printf "Please create the .env file based on .env.dist"
     exit
 fi
 
-export COMPOSE_CONVERT_WINDOWS_PATHS=1
+if [[ $(uname -s) =~ \MINGW* ]];
+then
+    export MSYS_NO_PATHCONV=1
+    export COMPOSE_CONVERT_WINDOWS_PATHS=1
+fi
 
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-LOG_PATH="$DIR/docker_logs.txt"
+LOG_PATH="./docker_logs.txt"
 
 source ./.env
 
-if [[ "" == "${COMPOSE_PROJECT_NAME}" ]]; then printf "\e[31mCOMPOSE_PROJECT_NAME env variable is not set.\e[0m\n"; exit; fi
+if [[ -z ${COMPOSE_PROJECT_NAME+x} ]]; then printf "\e[31mThe 'COMPOSE_PROJECT_NAME' variable is not defined.\e[0m\n"; exit 1; fi
 
 # Clear logs
 echo "" > ${LOG_PATH}
+
+Success() {
+    printf "\e[32m$1\e[0m\n"
+}
+
+Error() {
+    printf "\e[31m$1\e[0m\n"
+}
 
 Warning() {
     printf "\n\e[31;43m$1\e[0m\n"
@@ -26,16 +39,26 @@ Help() {
     printf "\n\e[2m$1\e[0m\n";
 }
 
+DoneOrError() {
+    if [[ $1 -eq 0 ]]
+    then
+        Success 'done'
+    else
+        Error 'error'
+        exit 1
+    fi
+}
+
 Confirm () {
     printf "\n"
     choice=""
-    while [ "$choice" != "n" ] && [ "$choice" != "y" ]
+    while [[ "$choice" != "n" ]] && [[ "$choice" != "y" ]]
     do
         printf "Do you want to continue ? (N/Y)"
         read choice
         choice=$(echo ${choice} | tr '[:upper:]' '[:lower:]')
     done
-    if [ "$choice" = "n" ]; then
+    if [[ "$choice" = "n" ]]; then
         printf "\nAbort by user.\n"
         exit 0
     fi
@@ -43,7 +66,7 @@ Confirm () {
 }
 
 IsUpAndRunning() {
-    if [[ "$(docker ps | grep ${COMPOSE_PROJECT_NAME}_$1)" ]]
+    if [[ "$(docker ps --format '{{.Names}}' | grep ${COMPOSE_PROJECT_NAME}_$1\$)" ]]
     then
         return 0
     fi
@@ -53,7 +76,7 @@ IsUpAndRunning() {
 CheckProxyUpAndRunning() {
     if ! IsUpAndRunning nginx
     then
-        printf "\e[31mProxy is not up and running.\e[0m\n"
+        Error "Proxy is not up and running."
         exit 1
     fi
 }
@@ -69,15 +92,13 @@ NetworkExists() {
 ComposeUp() {
     if IsUpAndRunning nginx
     then
-        printf "\e[31mAlready up and running.\e[0m\n"
+        Error "Already up and running."
         exit 1
     fi
 
     printf "Composing \e[1;33mup\e[0m ... "
-    cd ${DIR} && \
-        docker-compose up -d >> ${LOG_PATH} 2>&1 \
-            && printf "\e[32mdone\e[0m\n" \
-            || (printf "\e[31merror\e[0m\n" && exit 1)
+    docker-compose up -d >> ${LOG_PATH} 2>&1
+    DoneOrError $?
 
     if [[ -f ./networks.list ]]
     then
@@ -95,10 +116,8 @@ ComposeUp() {
 
 ComposeDown() {
     printf "Composing \e[1;33mdown\e[0m ... "
-    cd ${DIR} && \
-        docker-compose down -v --remove-orphans >> ${LOG_PATH} 2>&1 \
-            && printf "\e[32mdone\e[0m\n" \
-            || (printf "\e[31merror\e[0m\n" && exit 1)
+    docker-compose down -v --remove-orphans >> ${LOG_PATH} 2>&1
+    DoneOrError $?
 }
 
 Execute() {
@@ -119,7 +138,7 @@ Execute() {
 GenCert() {
     if [[ "" == "$1" ]]
     then
-        printf "\e[31mPlease provide a virtual host name.\e[0m\n"
+        Error "Please provide a virtual host name."
         exit 1
     fi
 
@@ -139,8 +158,19 @@ Connect() {
 
     printf "Connecting to \e[1;33m${NETWORK}\e[0m network ... "
 
-    docker network connect ${NETWORK} ${COMPOSE_PROJECT_NAME}_nginx >> ${LOG_PATH} 2>&1 || (printf "\e[31merror\e[0m\n" && exit 1)
-    docker network connect ${NETWORK} ${COMPOSE_PROJECT_NAME}_generator >> ${LOG_PATH} 2>&1 || (printf "\e[31merror\e[0m\n" && exit 1)
+    docker network connect ${NETWORK} ${COMPOSE_PROJECT_NAME}_nginx >> ${LOG_PATH} 2>&1
+    if [[ $? -ne 0 ]]
+    then
+        Error 'error'
+        exit 1
+    fi
+
+    docker network connect ${NETWORK} ${COMPOSE_PROJECT_NAME}_generator >> ${LOG_PATH} 2>&1
+    if [[ $? -ne 0 ]]
+    then
+        Error 'error'
+        exit 1
+    fi
 
     printf "\e[32mdone\e[0m\n"
 
@@ -155,14 +185,17 @@ Connect() {
 Reset() {
     ComposeDown
     printf "Clearing configured networks and certificates ... "
+
     if [[ -f ./networks.list ]]
     then
         rm ./networks.list
     fi
+
     if [[ -d ./volumes/certs/ ]]
     then
         rm -f ./volumes/certs/*
     fi
+
     printf "\e[32mdone\e[0m\n"
     ComposeUp
 }
