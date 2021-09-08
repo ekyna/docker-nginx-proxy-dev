@@ -1,39 +1,38 @@
-version: "2.2"
+version: "3.7"
 
 services:
     nginx:
-        restart: always
+        container_name: proxy_nginx
+        image: proxy/nginx
         build: ./nginx
-        image: npl/nginx
-        container_name: ${COMPOSE_PROJECT_NAME}_nginx
-        depends_on:
-            - generator
+        restart: always
         ports:
             - 80:80
             - 443:443
         volumes:
-            - ./volumes/conf.d:/etc/nginx/conf.d:rw
-            - ./volumes/vhost.d:/etc/nginx/vhost.d:rw
-            - ./volumes/html:/etc/nginx/html:rw
-            - ./volumes/certs:/etc/nginx/certs:rw
-            - ./volumes/gencert.sh:/root/gencert.sh:ro
+            - confd:/etc/nginx/conf.d:rw
+            - vhostd:/etc/nginx/vhost.d:rw
+            - certs:/etc/nginx/certs:rw
         logging:
             driver: "json-file"
-            options: { max-size: "2m", max-file: "3" }
-        cpus: 0.1
-        mem_limit: 64M
+            options: { max-size: "50k", max-file: "3" }
 
     generator:
+        container_name: proxy_generator
+        image: nginxproxy/docker-gen
         restart: always
-        image: jwilder/docker-gen
-        container_name: ${COMPOSE_PROJECT_NAME}_generator
+        command: -notify-sighup proxy_nginx -watch -wait 5s:30s /etc/docker-gen/templates/nginx.tmpl /etc/nginx/conf.d/default.conf
         volumes:
-            - ./volumes/conf.d:/etc/nginx/conf.d:rw
+            - confd:/etc/nginx/conf.d:rw
+            - vhostd:/etc/nginx/vhost.d:rw
+            - certs:/etc/nginx/certs:rw
+            - ./etc/nginx/nginx.tmpl:/etc/docker-gen/templates/nginx.tmpl:ro
             - /var/run/docker.sock:/tmp/docker.sock:ro
-            - ./volumes/proxy/nginx.tmpl:/etc/docker-gen/templates/nginx.tmpl:ro
-        entrypoint: /usr/local/bin/docker-gen -notify-sighup ${COMPOSE_PROJECT_NAME}_nginx -watch -wait 5s:30s /etc/docker-gen/templates/nginx.tmpl /etc/nginx/conf.d/default.conf
         logging:
             driver: "json-file"
-            options: { max-size: "2m", max-file: "3" }
-        cpus: 0.1
-        mem_limit: 64M
+            options: { max-size: "50k", max-file: "3" }
+
+volumes:
+    certs:
+    confd:
+    vhostd:
