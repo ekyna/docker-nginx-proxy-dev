@@ -30,11 +30,11 @@ Docker Nginx proxy with self signed certificates for local development.
 3. Create your network and connect it to the proxy services:
 
         docker network create example-network
-        ./do.sh connect example-network
+        ./manage.sh connect example-network
 
 4. Generate certs for your virtual host:
         
-        ./do.sh gencert example.dev
+        ./manage.sh gencert example.dev
 
 3. Run your website:
 

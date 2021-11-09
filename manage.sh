@@ -211,10 +211,10 @@ case $1 in
         ComposeDown
     ;;
     gencert)
-        GenCert $2
+        GenCert "$2"
     ;;
     connect)
-        Connect $2
+        Connect "$2"
     ;;
     restart)
         if ! IsUpAndRunning proxy_nginx

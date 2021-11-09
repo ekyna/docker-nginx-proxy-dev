@@ -1,4 +1,7 @@
 /.idea
+/.env
+/etc/certs
+/etc/conf.d
+/etc/vhost.d
 /docker_logs.txt
 /networks.list
-/.env
