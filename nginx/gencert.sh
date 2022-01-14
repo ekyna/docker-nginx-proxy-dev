@@ -1,30 +1,88 @@
 #!/bin/bash
 
+# See https://betterprogramming.pub/how-to-create-trusted-ssl-certificates-for-your-local-development-13fd5aad29c6
+
 if [[ $1 == "" ]]
 then
     printf "Please provide a virtual host name.\n";
     exit 1
 fi
 
-cd /etc/nginx/certs || exit 1
+if [[ $1 == "ca" ]]
+then
+    printf "'ca' is reserved.\n";
+    exit 1
+fi
 
-openssl req -x509 -nodes \
-    -days 365 \
-    -subj "/C=CA/ST=QC/O=Company, Inc./CN=$1" \
-    -addext "subjectAltName=DNS:$1" \
-    -newkey rsa:2048 \
-    -keyout "/etc/nginx/certs/$1.key" \
-    -out "/etc/nginx/certs/$1.crt"
+# Generate CA if it does not exist
+if [[ ! -f '/etc/nginx/certs/ca.key' ]] \
+    || [[ ! -f '/etc/nginx/certs/ca.pem' ]] \
+    || [[ ! -f '/etc/nginx/certs/ca.crt' ]]
+then
+    openssl req -x509 -nodes \
+        -new -sha512 \
+        -days 365 \
+        -subj "/C=FR/CN=LOCAL-CA" \
+        -newkey rsa:4096 \
+        -keyout /etc/nginx/certs/ca.key \
+        -out /etc/nginx/certs/ca.pem
 
-#openssl genrsa -des3 -passout pass:x -out $1.pass.key 2048
-#openssl rsa -passin pass:x -in $1.pass.key -out $1.key
-#rm $1.pass.key
-#
-#openssl req -new -key $1.key -out $1.csr -subj "/C=FR/O=$1/OU=$1/CN=$1"
-#openssl x509 -req -sha256 -days 300065 -in $1.csr -signkey $1.key -out $1.crt
-#rm $1.csr
+    openssl x509 -outform pem \
+        -in /etc/nginx/certs/ca.pem \
+        -out /etc/nginx/certs/ca.crt
 
-chown nginx:nginx "/etc/nginx/certs/$1.key" "/etc/nginx/certs/$1.crt"
+    chown nginx:nginx \
+        /etc/nginx/certs/ca.key \
+        /etc/nginx/certs/ca.pem \
+        /etc/nginx/certs/ca.crt \
+        /etc/nginx/certs/ca.srl
+fi
+
+if [[ -f "/etc/nginx/certs/$1.key" ]]
+then
+    rm "/etc/nginx/certs/$1.key"
+fi
+if [[ -f "/etc/nginx/certs/$1.csr" ]]
+then
+    rm "/etc/nginx/certs/$1.csr"
+fi
+if [[ -f "/etc/nginx/certs/$1.crt" ]]
+then
+    rm "/etc/nginx/certs/$1.crt"
+fi
+
+echo "authorityKeyIdentifier=keyid,issuer
+basicConstraints=CA:FALSE
+keyUsage = digitalSignature, nonRepudiation, keyEncipherment, dataEncipherment
+subjectAltName = @alt_names
+[alt_names]
+# Local hosts
+DNS.1 = localhost
+DNS.2 = 127.0.0.1
+DNS.3 = ::1
+# List your domain names here
+DNS.4 = $1
+" > v3.ext
+
+openssl req -new -nodes -newkey rsa:4096 \
+  -keyout "/etc/nginx/certs/$1.key" \
+  -out "/etc/nginx/certs/$1.csr" \
+  -subj "/C=FR/O=Company/CN=$1"
+
+openssl x509 -req -sha512 -days 365 \
+  -extfile v3.ext \
+  -CA /etc/nginx/certs/ca.crt \
+  -CAkey /etc/nginx/certs/ca.key \
+  -CAcreateserial \
+  -in "/etc/nginx/certs/$1.csr" \
+  -out "/etc/nginx/certs/$1.crt"
+
+rm v3.ext
+
+chown nginx:nginx \
+    "/etc/nginx/certs/$1.key" \
+    "/etc/nginx/certs/$1.crt" \
+    "/etc/nginx/certs/$1.csr"
 
 printf "Done !\n"
 

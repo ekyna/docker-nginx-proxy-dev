@@ -1,7 +1,7 @@
 ekyna/docker-nginx-proxy-dev
 ===
 
-Docker Nginx proxy with self signed certificates for local development.
+Docker Nginx proxy with self-signed certificates for local development.
 
 #### Usage
 
@@ -9,7 +9,7 @@ Docker Nginx proxy with self signed certificates for local development.
 
         git clone https://github.com/ekyna/docker-nginx-proxy.git 
         cd ./docker-nginx-proxy
-        ./do.sh up        
+        ./manage.sh up        
 
 2. Configure your website: 
     
@@ -36,7 +36,11 @@ Docker Nginx proxy with self signed certificates for local development.
         
         ./manage.sh gencert example.dev
 
-3. Run your website:
+5. Trust the CA
+
+   Follow [this guide](https://betterprogramming.pub/how-to-create-trusted-ssl-certificates-for-your-local-development-13fd5aad29c6#ee40)
+
+6. Run your website:
 
        cd ./example-website
        docker-compose up -d 
