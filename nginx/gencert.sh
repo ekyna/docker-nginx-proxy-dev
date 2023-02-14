@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# TODO Use https://github.com/FiloSottile/mkcert
+
 # See https://betterprogramming.pub/how-to-create-trusted-ssl-certificates-for-your-local-development-13fd5aad29c6
 
 if [[ $1 == "" ]]
@@ -21,7 +23,7 @@ if [[ ! -f '/etc/nginx/certs/ca.key' ]] \
 then
     openssl req -x509 -nodes \
         -new -sha512 \
-        -days 365 \
+        -days 3650 \
         -subj "/C=FR/CN=LOCAL-CA" \
         -newkey rsa:4096 \
         -keyout /etc/nginx/certs/ca.key \
@@ -69,7 +71,7 @@ openssl req -new -nodes -newkey rsa:4096 \
   -out "/etc/nginx/certs/$1.csr" \
   -subj "/C=FR/O=Company/CN=$1"
 
-openssl x509 -req -sha512 -days 365 \
+openssl x509 -req -sha512 -days 3650 \
   -extfile v3.ext \
   -CA /etc/nginx/certs/ca.crt \
   -CAkey /etc/nginx/certs/ca.key \
