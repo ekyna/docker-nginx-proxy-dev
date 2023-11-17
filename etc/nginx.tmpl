@@ -378,6 +378,10 @@ server {
         grpc_pass {{ trim $proto }}://{{ trim $upstream_name }};
         {{ else }}
         proxy_pass {{ trim $proto }}://{{ trim $upstream_name }};
+        # fix "upstream sent too big header while reading response header from upstream"
+        proxy_buffer_size 128k;
+        proxy_buffers 4 256k;
+        proxy_busy_buffers_size 256k;
         {{ end }}
 
         {{ if (exists (printf "/etc/nginx/htpasswd/%s" $host)) }}
@@ -390,6 +394,8 @@ server {
         {{ else if (exists "/etc/nginx/vhost.d/default_location") }}
         include /etc/nginx/vhost.d/default_location;
         {{ end }}
+
+        client_max_body_size  16m;
     }
 }
 
@@ -465,6 +471,10 @@ server {
         grpc_pass {{ trim $proto }}://{{ trim $upstream_name }};
         {{ else }}
         proxy_pass {{ trim $proto }}://{{ trim $upstream_name }};
+        # fix "upstream sent too big header while reading response header from upstream"
+        proxy_buffer_size 128k;
+        proxy_buffers 4 256k;
+        proxy_busy_buffers_size 256k;
         {{ end }}
 
         {{ if (exists (printf "/etc/nginx/htpasswd/%s" $host)) }}
@@ -477,6 +487,8 @@ server {
         {{ else if (exists "/etc/nginx/vhost.d/default_location") }}
         include /etc/nginx/vhost.d/default_location;
         {{ end }}
+
+        client_max_body_size  16m;
     }
 }
 
